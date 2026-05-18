@@ -2,6 +2,8 @@ import os
 import yt_dlp
 from pathlib import Path
 
+COOKIES_FILE = os.getenv("COOKIES_FILE", "cookies.txt")
+
 
 def detect_platform(url: str) -> str:
     url_lower = url.lower()
