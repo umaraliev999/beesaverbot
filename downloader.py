@@ -18,27 +18,8 @@ def detect_platform(url: str) -> str:
     return "unknown"
 
 
-def get_format(platform: str, media_type: str, quality: str) -> str:
-    if media_type == "audio":
-        return "bestaudio/best"
-
-    # ffmpeg talab qilmaydigan tayyor formatlar
-    quality_map = {
-        "360":  "best[height<=360][ext=mp4]/best[height<=360]",
-        "720":  "best[height<=720][ext=mp4]/best[height<=720]",
-        "1080": "best[height<=1080][ext=mp4]/best[height<=1080]",
-        "best": "best[height<=720][ext=mp4]/best[height<=720]",
-    }
-
-    if platform == "youtube":
-        return quality_map.get(quality, quality_map["720"])
-
-    return "best[ext=mp4]/best"
-
-
 def get_ydl_opts(platform: str, media_type: str, quality: str, output_dir: str) -> dict:
     output_template = os.path.join(output_dir, "%(title).50s.%(ext)s")
-    fmt = get_format(platform, media_type, quality)
 
     common = {
         "outtmpl": output_template,
@@ -46,15 +27,33 @@ def get_ydl_opts(platform: str, media_type: str, quality: str, output_dir: str) 
         "no_warnings": True,
         "noplaylist": True,
         "max_filesize": 50 * 1024 * 1024,
+        # Bot detection bypass
+        "extractor_args": {
+            "youtube": {
+                "skip": ["dash", "hls"],
+                "player_client": ["android", "web"],
+            }
+        },
+        "http_headers": {
+            "User-Agent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip",
+        },
     }
 
-    if platform == "youtube" and Path(COOKIES_FILE).exists():
+    # Cookie fayli mavjud bo'lsa ishlat
+    if Path(COOKIES_FILE).exists():
         common["cookiefile"] = COOKIES_FILE
+
+    quality_formats = {
+        "360":  "best[height<=360][ext=mp4]/best[height<=360]",
+        "720":  "best[height<=720][ext=mp4]/best[height<=720]",
+        "1080": "best[height<=1080][ext=mp4]/best[height<=1080]",
+        "best": "best[height<=720][ext=mp4]/best[height<=720]",
+    }
 
     if media_type == "audio":
         return {
             **common,
-            "format": fmt,
+            "format": "bestaudio/best",
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
@@ -62,18 +61,12 @@ def get_ydl_opts(platform: str, media_type: str, quality: str, output_dir: str) 
             }],
         }
 
-    opts = {
+    fmt = quality_formats.get(quality, quality_formats["720"]) if platform == "youtube" else "best[ext=mp4]/best"
+
+    return {
         **common,
         "format": fmt,
-        "merge_output_format": "mp4",
     }
-
-    if platform == "instagram":
-        opts["http_headers"] = {
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
-        }
-
-    return opts
 
 
 def download_media(url: str, platform: str, media_type: str, quality: str, output_dir: str):
@@ -110,15 +103,18 @@ def get_playlist_info(url: str) -> dict:
 
 def download_playlist(url: str, output_dir: str):
     output_template = os.path.join(output_dir, "%(playlist_index)s_%(title).40s.%(ext)s")
-
     opts = {
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "format": "best[height<=720][ext=mp4]/best[height<=720]",
-        "merge_output_format": "mp4",
         "max_filesize": 50 * 1024 * 1024,
         "ignoreerrors": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"],
+            }
+        },
     }
     if Path(COOKIES_FILE).exists():
         opts["cookiefile"] = COOKIES_FILE
