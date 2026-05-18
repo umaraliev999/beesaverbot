@@ -22,11 +22,12 @@ def get_format(platform: str, media_type: str, quality: str) -> str:
     if media_type == "audio":
         return "bestaudio/best"
 
+    # ffmpeg talab qilmaydigan tayyor formatlar
     quality_map = {
-        "360":  "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[height<=360]",
-        "720":  "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]",
-        "1080": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]",
-        "best": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]",
+        "360":  "best[height<=360][ext=mp4]/best[height<=360]",
+        "720":  "best[height<=720][ext=mp4]/best[height<=720]",
+        "1080": "best[height<=1080][ext=mp4]/best[height<=1080]",
+        "best": "best[height<=720][ext=mp4]/best[height<=720]",
     }
 
     if platform == "youtube":
@@ -46,6 +47,9 @@ def get_ydl_opts(platform: str, media_type: str, quality: str, output_dir: str) 
         "noplaylist": True,
         "max_filesize": 50 * 1024 * 1024,
     }
+
+    if platform == "youtube" and Path(COOKIES_FILE).exists():
+        common["cookiefile"] = COOKIES_FILE
 
     if media_type == "audio":
         return {
@@ -72,7 +76,7 @@ def get_ydl_opts(platform: str, media_type: str, quality: str, output_dir: str) 
     return opts
 
 
-def download_media(url: str, platform: str, media_type: str, quality: str, output_dir: str) -> str | None:
+def download_media(url: str, platform: str, media_type: str, quality: str, output_dir: str):
     opts = get_ydl_opts(platform, media_type, quality, output_dir)
 
     with yt_dlp.YoutubeDL(opts) as ydl:
@@ -91,6 +95,9 @@ def get_playlist_info(url: str) -> dict:
         "extract_flat": True,
         "skip_download": True,
     }
+    if Path(COOKIES_FILE).exists():
+        opts["cookiefile"] = COOKIES_FILE
+
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
         entries = info.get("entries", [])
@@ -101,18 +108,20 @@ def get_playlist_info(url: str) -> dict:
         }
 
 
-def download_playlist(url: str, output_dir: str) -> list[str]:
+def download_playlist(url: str, output_dir: str):
     output_template = os.path.join(output_dir, "%(playlist_index)s_%(title).40s.%(ext)s")
 
     opts = {
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
-        "format": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best",
+        "format": "best[height<=720][ext=mp4]/best[height<=720]",
         "merge_output_format": "mp4",
         "max_filesize": 50 * 1024 * 1024,
-        "ignoreerrors": True,  # Xatolikda keyingisiga o'tadi
+        "ignoreerrors": True,
     }
+    if Path(COOKIES_FILE).exists():
+        opts["cookiefile"] = COOKIES_FILE
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         ydl.extract_info(url, download=True)
