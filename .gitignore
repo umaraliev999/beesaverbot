@@ -1,0 +1,17 @@
+# ffmpeg
+ffmpeg*/
+ffmpeg.exe
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Database
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
